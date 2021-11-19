@@ -1,6 +1,7 @@
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, String, Integer, ForeignKey, create_engine, Boolean
 import os
+import psycopg2
 
 # CHANGE THIS SETTINGS IF YOU HAVE ANY DIFFERENT
 DB_SCHEME = 'postgresql+psycopg2'
@@ -29,18 +30,16 @@ class Users(Base):
     __tablename__ = 'users'
     id = Column(Integer(), autoincrement=True, primary_key=True, unique=True)
     name = Column(String(64), nullable=False)
-    login = Column(String(24), nullable=False, unique=True)
-    password = Column(String(48), nullable=False)
-    email = Column(String(80), nullable=False, unique=True)
-    userStatus = Column(String(40), nullable=False)
-    locationId = Column(Integer(), nullable=False)
+    password = Column(String(500), nullable=False)
+    role = Column(String(64))
+    location_id = Column(Integer(),ForeignKey('location.id'))
 
 
 class Advertisement(Base):
     __tablename__ = 'advertisement'
     id = Column(Integer(), autoincrement=True, primary_key=True, unique=True)
-    name = Column(String(80), nullable=False)
-    protectedStatus = Column(Boolean(), nullable=False)
+    title = Column(String(64))
+    status = Column(Boolean,nullable=False)
 
 
 class Message(Base):
@@ -53,5 +52,11 @@ class Message(Base):
 class Location(Base):
     __tablename__ = 'location'
     id = Column(Integer(), autoincrement=True, primary_key=True, unique=True)
-    location_id = Column(Integer(), ForeignKey('users.id'), unique=True)
-    advertisement_id = Column(Integer(), ForeignKey('advertisement.id'), unique=True)
+    city = Column(Integer())
+
+class Advertisement_location(Base):
+    __tablename__ = 'advertisement_location'
+    id = Column(Integer(), autoincrement=True, primary_key=True, unique=True)
+    location_id = Column(Integer(),ForeignKey('location_id'))
+    advertisement_id =Column(Integer(),ForeignKey('advertisement_id'))
+
