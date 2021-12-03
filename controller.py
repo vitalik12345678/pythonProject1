@@ -5,15 +5,31 @@ import schemas
 import commands
 from sqlalchemy.exc import IntegrityError
 from marshmallow import ValidationError
-import datetime
+from flask_httpauth import HTTPBasicAuth
+from sqlalchemy.orm import sessionmaker
+from project_poetry.dbmodel import *
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
+
+Session = sessionmaker()
+Session.configure(bind=engine)
+auth = HTTPBasicAuth()
+
+@auth.verify_password
+def verify_password(login, password):
+    session = Session()
+    found_user = session.query(Users).filter_by(name=login).first()
+    if not found_user:
+        return False
+    if Bcrypt().check_password_hash(found_user.password, password):
+        return found_user
 
 
 # ======== USER ========
 
 @app.route('/users', methods=['POST'])
+@auth.login_required
 def userRoot():
     try:
         schema = schemas.UserSchema()
@@ -59,11 +75,31 @@ def userLogin():
 # CAN'T IMPLEMENT WITHOUT AUTH !!!
 @app.route('/user/logout', methods=['GET'])
 def userLogout():
-    # IMPLEMENT 500
-    return 'Logout success'
+    data = request.json
+    login = data.pop('name', None)
+    if login is None:
+        return f'No login provided', 400
+    try:
+        schema = schemas.ValidateUserFieldsSchema().load({"name": login})
+    except ValidationError as err:
+        return f'{err}', 400
+    except Exception as err:
+        return f'Internal server error. {err}', 500
+
+    try:
+        userInfo = commands.Logout(login)
+        displayValue = f'''
+        Loggout successful
+       '''
+    except ValueError as err:
+        return f'Uncorrected logout', 200
+    except Exception as err:
+        return f'Internal server error. {err}', 500
+    return f'{displayValue}'
 
 
 @app.route('/user/<login>', methods=['GET', 'PUT', 'DELETE'])
+@auth.login_required
 def userHandling(login):
     if request.method == 'GET':
         try:
@@ -128,6 +164,7 @@ def userHandling(login):
 
 
 @app.route('/advert', methods=['POST'])
+@auth.login_required
 def advertRoot():
     try:
         schema = schemas.AdvertSchema()
@@ -146,6 +183,7 @@ def advertRoot():
 
 
 @app.route('/message/<id>', methods=['GET', 'PUT', 'DELETE'])
+@auth.login_required
 def deleteMessage(id):
     if request.method == 'DELETE':
         try:
@@ -185,6 +223,7 @@ def messageRoot():
 
 
 @app.route('/advert/<id>', methods=['GET', 'PUT', 'DELETE'])
+@auth.login_required
 def advertHandling(id):
     if request.method == 'GET':
         try:
@@ -251,7 +290,7 @@ def advertHandling(id):
 
 
 @app.route('/listl/<top>', methods=['GET'])
-def privateAdvert(top):
+def localAdvert(top):
 
     try:
         displayAdv = ""
@@ -259,14 +298,15 @@ def privateAdvert(top):
         for ad in advertInfo:
             displayAdv += f'''
                           title = {ad['title']};
-                          status = {ad['status']}
+                          status = false
                       '''
         return f'{displayAdv}'
     except Exception as err:
         return f'Internal server error. {err}', 500
 
 @app.route('/listp/<top>', methods=['GET'])
-def localAdvert(top):
+@auth.login_required
+def privateAdvert(top):
 
     try:
         displayAdv = ""

@@ -36,6 +36,17 @@ def Login(loginInfo):
         raise err
 
 
+def Logout(login):
+    try:
+        print(login)
+        result = session.query(Users).filter_by(name=login).first()
+        if result == None:
+            raise ValueError('No user found')
+        print("Jopa")
+        return result
+    except Exception as err:
+        raise err
+
 def GetUserInfo(login):
     try:
         print(login)
